@@ -4,7 +4,7 @@ user_config:
   monitor_with_simulator: false
   # Purge fetchMetrics documents after this time
   purge_old_docs_after_hours: 72
-  polling_interval_in_secs: 300
+  polling_interval_in_secs: 10
   is_accelerated: false
 cluster_details:
   # AWS launch template ID
@@ -37,50 +37,46 @@ cluster_details:
   max_nodes_allowed: 10
   # Minimum number of nodes at any point in the cluster
   min_nodes_allowed: 3
-  # Specify the percent of RAM to be allocated to HEAP. Ex: 0.5 = 50% of RAM to be allocated as Heap memory
-  # Please note that this factory multiplied by your RAM should not exceed 32GB
-  # Also, this value can't be greater than 50% as that is the max RAM that can be allocated to heap
-  jvm_factor: 0.5
 task_details:
-  - task_name: scale_up_by_1
-    operator: OR
-    rules:
-      - metric: CpuUtil
-        limit: 80
-        stat: AVG
-        decision_period: 180
-      - metric: CpuUtil
-        limit: 80
-        stat: COUNT
-        occurrences: 90%
-        decision_period: 180
-      - metric: RamUtil
-        limit: 90
-        stat: COUNT
-        occurrences: 30
-        decision_period: 180
-      - metric: TotalShards
-        limit: 700
-        stat: TERM
-        decision_period: 180
-      - metric: DiskUtil
-        limit: 80
-        stat: COUNT
-        occurrences: 30
-        decision_period: 180
-  - task_name: scale_down_by_1
-    operator: AND
-    rules:
-      - metric: CpuUtil
-        limit: 30
-        stat: AVG
-        decision_period: 720
-      - metric: RamUtil
-        limit: 45
-        stat: AVG
-        decision_period: 720
-      - metric: DiskUtil
-        limit: 50
-        stat: COUNT
-        occurrences: 30
-        decision_period: 720
+- task_name: scale_up_by_1
+  operator: OR
+  rules:
+  - metric: CpuUtil
+    limit: 55
+    stat: AVG
+    decision_period: 300
+  - metric: CpuUtil
+    limit: 50%
+    stat: COUNT
+    occurrences: 10
+    decision_period: 300
+  - metric: RamUtil
+    limit: 90
+    stat: AVG
+    decision_period: 300
+- task_name: scale_up_by_1
+  operator: EVENT
+  rules:
+  - scheduling_time: "0 0 * * 1-4"
+    num_nodes_required: 6
+- task_name: scale_down_by_1
+  operator: EVENT
+  rules:
+  - scheduling_time: "0 0 * * 5-6"
+    num_nodes_required: 3
+- task_name: scale_down_by_1
+  operator: AND
+  rules:
+  - metric: CpuUtil
+    limit: 40
+    stat: AVG
+    decision_period: 300
+  - metric: CpuUtil
+    limit: 40
+    stat: COUNT
+    occurrences: 6
+    decision_period: 300
+  - metric: RamUtil
+    limit: 45
+    stat: AVG
+    decision_period: 300

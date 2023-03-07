@@ -1,14 +1,14 @@
 package config
 
 import (
-	"github.com/go-playground/validator/v10"
-	"github.com/maplelabs/opensearch-scaling-manager/cluster"
-	"github.com/maplelabs/opensearch-scaling-manager/logger"
-	"github.com/maplelabs/opensearch-scaling-manager/recommendation"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"regexp"
+
+	"github.com/go-playground/validator/v10"
+	"github.com/maplelabs/opensearch-scaling-manager/cluster"
+	"github.com/maplelabs/opensearch-scaling-manager/logger"
+	"gopkg.in/yaml.v3"
 )
 
 var log logger.LOG
@@ -72,9 +72,54 @@ type UserConfig struct {
 
 // This struct contains the data structure to parse the configuration file.
 type ConfigStruct struct {
-	UserConfig     UserConfig            `yaml:"user_config"`
-	ClusterDetails ClusterDetails        `yaml:"cluster_details"`
-	TaskDetails    []recommendation.Task `yaml:"task_details" validate:"gt=0,dive"`
+	UserConfig     UserConfig     `yaml:"user_config"`
+	ClusterDetails ClusterDetails `yaml:"cluster_details"`
+	TaskDetails    []Task         `yaml:"task_details" validate:"gt=0,dive"`
+}
+
+// This struct contains the task to be perforrmed by the recommendation and set of rules wrt the action.
+type Task struct {
+	// TaskName indicates the name of the task to recommend by the recommendation engine.
+	TaskName string `yaml:"task_name" validate:"required,isValidTaskName"`
+	// Rules indicates list of rules to evaluate the criteria for the recomm+endation engine.
+	Rules []Rule `yaml:"rules" validate:"gt=0,dive"`
+	// Operator indicates the logical operation needs to be performed while executing the rules
+	Operator string `yaml:"operator" validate:"required,oneof=AND OR"`
+}
+
+// This struct contains the rule.
+type Rule struct {
+	// Metic indicates the name of the metric. These can be:
+	//      Cpu
+	//      Mem
+	//      Shard
+	Metric string `yaml:"metric" validate:"required,oneof=CpuUtil RamUtil HeapUtil DiskUtil NumShards"`
+	// Limit indicates the threshold value for a metric.
+	// If this threshold is achieved for a given metric for the decision periond then the rule will be activated.
+	Limit float32 `yaml:"limit" validate:"required"`
+	// Stat indicates the statistics on which the evaluation of the rule will happen.
+	// For Cpu and Mem the values can be:
+	//              Avg: The average CPU or MEM value will be calculated for a given decision period.
+	//              Count: The number of occurences where CPU or MEM value crossed the threshold limit.
+	//              Term:
+	// For rule: Shard, the stat will not be applicable as the shard will be calculated across the cluster and is not a statistical value.
+	Stat string `yaml:"stat" validate:"required,oneof=AVG COUNT TERM"`
+	// DecisionPeriod indicates the time in minutes for which a rule is evalated.
+	DecisionPeriod int `yaml:"decision_period" validate:"required,min=1"`
+	// Occurrences indicate the number of time a rule reached the threshold limit for a give decision period.
+	// It will be applicable only when the Stat is set to Count.
+	Occurrences string `yaml:"occurrences" validate:"required_if=Stat COUNT"`
+}
+
+// This struct contains the task details which is set of actions.
+type TaskDetails struct {
+	// Tasks indicates list of task.
+	// A task indicates what operation needs to be recommended by recommendation engine.
+	// As of now tasks can be of two types:
+	//
+	//      scale_up_by_1
+	//      scale_down_by_1
+	Tasks []Task `yaml:"action" validate:"gt=0,dive"`
 }
 
 // Inputs:
@@ -119,6 +164,7 @@ func validation(config ConfigStruct) error {
 	validate := validator.New()
 	validate.RegisterValidation("isValidName", isValidName)
 	validate.RegisterValidation("isValidTaskName", isValidTaskName)
+	validate.RegisterStructValidation(RuleStructLevelValidation, task.Rule{})
 	err := validate.Struct(config)
 	return err
 }
@@ -157,6 +203,48 @@ func isValidTaskName(fl validator.FieldLevel) bool {
 	TaskNameRegex := regexp.MustCompile(TaskNameRegexString)
 
 	return TaskNameRegex.MatchString(fl.Field().String())
+}
+
+// Inputs:
+//
+//	fl (validator.StructLevel): The field of StructLevel needs to be validated.
+//
+// Description:
+//
+//	This function will be validating the Rule struct.
+//	It will be Reporting Error when the validation for a field fails.
+//
+// Return:
+func RuleStructLevelValidation(sl validator.StructLevel) {
+
+	tasks := sl.Parent().Interface().(task.Task)
+	rule := sl.Current().Interface().(task.Rule)
+
+	if tasks.Operator == "AND" || tasks.Operator == "OR" {
+		if rule.Metric != "CpuUtil" && rule.Metric != "RamUtil" && rule.Metric != "DiskUtil" &&
+			rule.Metric != "HeapUtil" && rule.Metric != "NumShards" {
+			sl.ReportError(rule.Metric, "metric", "Metric", "OneOf", "")
+		}
+		if rule.Limit <= 0 {
+			sl.ReportError(rule.Limit, "Limit", "Limit", "required", "")
+		}
+		if rule.Stat != "AVG" && rule.Stat != "COUNT" && rule.Stat != "TERM" {
+			sl.ReportError(rule.Stat, "Stat", "Stat", "OneOf", "")
+		}
+		if rule.DecisionPeriod <= 0 {
+			sl.ReportError(rule.DecisionPeriod, "DecisionPeriod", "DecisionPeriod", "required,min", "")
+		}
+		if rule.Stat == "COUNT" && rule.Occurrences <= 0 {
+			sl.ReportError(rule.Occurrences, "Occurrences", "Occurrences", "required_if", "")
+		}
+	} else if tasks.Operator == "EVENT" {
+		if rule.SchedulingTime == "" {
+			sl.ReportError(rule.SchedulingTime, "SchedulingTime", "scheduling_time", "required", "")
+		}
+		if rule.NumNodesRequired <= 0 {
+			sl.ReportError(rule.NumNodesRequired, "NumNodesRequired", "number_of_node", "required", "")
+		}
+	}
 }
 
 // Inputs:
