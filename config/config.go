@@ -109,6 +109,13 @@ type Rule struct {
 	// Occurrences indicate the number of time a rule reached the threshold limit for a give decision period.
 	// It will be applicable only when the Stat is set to Count.
 	Occurrences string `yaml:"occurrences" validate:"required_if=Stat COUNT"`
+	// Scheduling time indicates cron time expression to schedule scaling operations
+	// Example:
+	// SchedulingTime = "30 5 * * 1-5"
+	// In the above example the cron job will run at 5:30 AM from Mon-Fri of every month
+	SchedulingTime string `yaml:"scheduling_time"`
+	// NumNodesRequired specifies the integer value of number of nodes to be present in cluster for event based scaling operations
+	NumNodesRequired int `yaml:"num_nodes_required"`
 }
 
 // This struct contains the task details which is set of actions.
@@ -164,7 +171,7 @@ func validation(config ConfigStruct) error {
 	validate := validator.New()
 	validate.RegisterValidation("isValidName", isValidName)
 	validate.RegisterValidation("isValidTaskName", isValidTaskName)
-	validate.RegisterStructValidation(RuleStructLevelValidation, task.Rule{})
+	validate.RegisterStructValidation(RuleStructLevelValidation, Rule{})
 	err := validate.Struct(config)
 	return err
 }
@@ -217,8 +224,8 @@ func isValidTaskName(fl validator.FieldLevel) bool {
 // Return:
 func RuleStructLevelValidation(sl validator.StructLevel) {
 
-	tasks := sl.Parent().Interface().(task.Task)
-	rule := sl.Current().Interface().(task.Rule)
+	tasks := sl.Parent().Interface().(Task)
+	rule := sl.Current().Interface().(Rule)
 
 	if tasks.Operator == "AND" || tasks.Operator == "OR" {
 		if rule.Metric != "CpuUtil" && rule.Metric != "RamUtil" && rule.Metric != "DiskUtil" &&

@@ -61,13 +61,13 @@ func init() {
 // Return:
 //		([]map[string]string): Returns an array of the recommendations.
 
-func EvaluateTask(t *config.TaskDetails, pollingInterval int, simFlag, isAccelerated bool, t config.TaskDetails)[]map[string]string {
+func EvaluateTask(pollingInterval int, simFlag, isAccelerated bool, t *config.TaskDetails)[]map[string]string {
 	var recommendationArray []map[string]string
 	var isRecommendedTask bool
 	for _, v := range t.Tasks {
 		// v := (MyTask)(v)
 		var rulesResponsibleMap = make(map[string]string)
-		isRecommendedTask, rulesResponsibleMap[v.TaskName] = v.GetNextTask(pollingInterval, simFlag, isAccelerated)
+		isRecommendedTask, rulesResponsibleMap[v.TaskName] = GetNextTask(pollingInterval, simFlag, isAccelerated, v)
 		log.Debug.Println(rulesResponsibleMap)
 		if isRecommendedTask {
 			PushToRecommendationQueue(v)
@@ -351,7 +351,7 @@ func ParseTasks(taskDetails config.TaskDetails) (*config.TaskDetails, *config.Ta
 //		schedule and create cron job.
 //
 // Return:
-func CreateCronJob(state *provision.State, eventTasks *config.TaskDetails, config.ClusterDetails, userCfg config.UserConfig, t *time.Time) {
+func CreateCronJob(state *provision.State, eventTasks *config.TaskDetails, clusterCfg config.ClusterDetails, userCfg config.UserConfig, t *time.Time) {
 	for _, cronJob := range cronJobList {
 		for _, jobs := range cronJob.Entries() {
 			cronJob.Remove(jobs.ID)

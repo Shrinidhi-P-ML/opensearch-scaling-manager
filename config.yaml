@@ -41,19 +41,19 @@ task_details:
 - task_name: scale_up_by_1
   operator: OR
   rules:
-  - metric: CpuUtil
-    limit: 55
-    stat: AVG
-    decision_period: 300
-  - metric: CpuUtil
-    limit: 50%
-    stat: COUNT
-    occurrences: 10
-    decision_period: 300
-  - metric: RamUtil
-    limit: 90
-    stat: AVG
-    decision_period: 300
+    - metric: CpuUtil
+      limit: 55
+      stat: AVG
+      decision_period: 300
+    - metric: CpuUtil
+      limit: 30
+      stat: COUNT
+      occurrences: 10
+      decision_period: 300
+    - metric: RamUtil
+      limit: 90
+      stat: AVG
+      decision_period: 300
 - task_name: scale_up_by_1
   operator: EVENT
   rules:
@@ -67,16 +67,16 @@ task_details:
 - task_name: scale_down_by_1
   operator: AND
   rules:
-  - metric: CpuUtil
-    limit: 40
-    stat: AVG
-    decision_period: 300
-  - metric: CpuUtil
-    limit: 40
-    stat: COUNT
-    occurrences: 6
-    decision_period: 300
-  - metric: RamUtil
-    limit: 45
-    stat: AVG
-    decision_period: 300
+    - metric: CpuUtil
+      limit: 40
+      stat: AVG
+      decision_period: 300
+    - metric: CpuUtil
+      limit: 40
+      stat: COUNT
+      occurrences: 6
+      decision_period: 300
+    - metric: RamUtil
+      limit: 45
+      stat: AVG
+      decision_period: 300
